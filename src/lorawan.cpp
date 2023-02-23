@@ -10,32 +10,35 @@ namespace {
 
 }
 
-static SX1272_LoRaRadio radio(MBED_CONF_SX1272_LORA_DRIVER_SPI_MOSI,
-        MBED_CONF_SX1272_LORA_DRIVER_SPI_MISO,
-        MBED_CONF_SX1272_LORA_DRIVER_SPI_SCLK,
-        MBED_CONF_SX1272_LORA_DRIVER_SPI_CS,
-        MBED_CONF_SX1272_LORA_DRIVER_RESET,
-        MBED_CONF_SX1272_LORA_DRIVER_DIO0,
-        MBED_CONF_SX1272_LORA_DRIVER_DIO1,
-        MBED_CONF_SX1272_LORA_DRIVER_DIO2,
-        MBED_CONF_SX1272_LORA_DRIVER_DIO3,
-        MBED_CONF_SX1272_LORA_DRIVER_DIO4,
-        MBED_CONF_SX1272_LORA_DRIVER_DIO5,
-        MBED_CONF_SX1272_LORA_DRIVER_RF_SWITCH_CTL1,
-        MBED_CONF_SX1272_LORA_DRIVER_RF_SWITCH_CTL2,
-        MBED_CONF_SX1272_LORA_DRIVER_TXCTL,
-        MBED_CONF_SX1272_LORA_DRIVER_RXCTL,
-        MBED_CONF_SX1272_LORA_DRIVER_ANT_SWITCH,
-        MBED_CONF_SX1272_LORA_DRIVER_PWR_AMP_CTL,
-        MBED_CONF_SX1272_LORA_DRIVER_TCXO);
-
-Lorawan::Lorawan():
-        _evt_queue(new EventQueue()),
-        _lorawan(new LoRaWANInterface(radio)),
+Lorawan::Lorawan(EventQueue *event_queue):
+        _evt_queue(event_queue),
+        _radio(MBED_CONF_SX1272_LORA_DRIVER_SPI_MOSI,
+                MBED_CONF_SX1272_LORA_DRIVER_SPI_MISO,
+                MBED_CONF_SX1272_LORA_DRIVER_SPI_SCLK,
+                MBED_CONF_SX1272_LORA_DRIVER_SPI_CS,
+                MBED_CONF_SX1272_LORA_DRIVER_RESET,
+                MBED_CONF_SX1272_LORA_DRIVER_DIO0,
+                MBED_CONF_SX1272_LORA_DRIVER_DIO1,
+                MBED_CONF_SX1272_LORA_DRIVER_DIO2,
+                MBED_CONF_SX1272_LORA_DRIVER_DIO3,
+                MBED_CONF_SX1272_LORA_DRIVER_DIO4,
+                MBED_CONF_SX1272_LORA_DRIVER_DIO5,
+                MBED_CONF_SX1272_LORA_DRIVER_RF_SWITCH_CTL1,
+                MBED_CONF_SX1272_LORA_DRIVER_RF_SWITCH_CTL2,
+                MBED_CONF_SX1272_LORA_DRIVER_TXCTL,
+                MBED_CONF_SX1272_LORA_DRIVER_RXCTL,
+                MBED_CONF_SX1272_LORA_DRIVER_ANT_SWITCH,
+                MBED_CONF_SX1272_LORA_DRIVER_PWR_AMP_CTL,
+                MBED_CONF_SX1272_LORA_DRIVER_TCXO),
+        _lorawan(new LoRaWANInterface(_radio)),
         _lorawan_status(LORAWAN_STATUS_OK),
-        _buffer(new LoRaWANBuffer())
+        _buffer(new LoRaWANBuffer()),
+        _spif(P1_SPI_MOSI, P1_SPI_MISO, P1_SPI_SCK, PB_13)
+
 {
     init();
+
+    initialize_external_flash();
 }
 
 void Lorawan::init()
@@ -69,16 +72,46 @@ void Lorawan::init()
 
     printf("\n Adaptive data  rate (ADR) - Enabled\n");
 
-    _lorawan_status = _lorawan->connect();
+    // _lorawan_status = _lorawan->connect();
+
+    // if (_lorawan_status == LORAWAN_STATUS_OK
+    //         || _lorawan_status == LORAWAN_STATUS_CONNECT_IN_PROGRESS) {
+    // } else {
+    //     printf("\n Connection error, code = %d\n", _lorawan_status);
+    //     return;
+    // }
+
+    // printf("\n Connection - In Progress ...\n");
+}
+
+void Lorawan::run(uint8_t *dev_eui, uint8_t *app_eui, uint8_t *app_key)
+{
+    _connect_params.connect_type = LORAWAN_CONNECTION_OTAA;
+    _connect_params.connection_u.otaa.dev_eui = dev_eui;
+    _connect_params.connection_u.otaa.app_eui = app_eui;
+    _connect_params.connection_u.otaa.app_key = app_key;
+    _connect_params.connection_u.otaa.nb_trials = MBED_CONF_LORA_NB_TRIALS;
+
+    connect();
+}
+void Lorawan::configure_otaa_credentials(char *buffer, uint64_t addr)
+{
+    _spif.erase(addr * 4096, _spif.get_erase_size());
+    _spif.program(buffer, addr * 4096, _spif.get_erase_size() / 8);
+}
+
+void Lorawan::connect()
+{
+    _lorawan_status = _lorawan->connect(_connect_params);
 
     if (_lorawan_status == LORAWAN_STATUS_OK
             || _lorawan_status == LORAWAN_STATUS_CONNECT_IN_PROGRESS) {
+        printf("\n Connection - In Progress ...\n");
+    } else if (_lorawan_status == LORAWAN_STATUS_ALREADY_CONNECTED) {
+        printf("\n Connection - Already connected! \n");
     } else {
-        printf("\n Connection error, code = %d\n", _lorawan_status);
-        return;
+        printf("\n Connection error, code = %d \n", _lorawan_status);
     }
-
-    printf("\n Connection - In Progress ...\n");
 }
 
 void Lorawan::lora_event_handler(lorawan_event_t event)
@@ -146,4 +179,9 @@ void Lorawan::transmit()
 void Lorawan::dispatch_with_period(std::chrono::duration<int, std::milli> period)
 {
     _evt_queue->dispatch_for(period);
+}
+
+void Lorawan::initialize_external_flash()
+{
+    _spif.init();
 }
