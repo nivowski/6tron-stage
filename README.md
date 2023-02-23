@@ -1,58 +1,28 @@
-# IAQ Sensor Demo
-Mbed OS application measuring interior air quality.
+# FMLR Forwarder
 
-## Requirements
-### Hardware requirements
-The following boards are required:
-- Zest_Core_FMLR-72
-- Zest_Sensor_T-RH
-- Zest_Sensor_CO2
+Application integrated into the Multitech Conduit LoRaWAN gateway.
 
-### Software requirements
-IAQ Sensor Demo makes use of the following libraries (automatically
-imported by `mbed deploy` or `mbed import`):
-- zest-core-fmlr-72
-- 2smpb-02e
-- ams-as621x
-- htu21d
-- scd4x
+## General
 
-## Usage
-To clone **and** deploy the project in one command, use `mbed import` and skip to the
-target enabling instructions:
+- Application subscribes to the local MQTT broker topic `lora/+/up`
+- When a message is received, it parses the AppEUI to determine the origin of
+  the message:
+    - CATIE measurement system payload is directly published to ThingsBoard
+
+## Configuration
+
+- `CONDUIT_BROKER_IP` represents the IP of the Conduit broker: it should be
+  `127.0.0.1` if deployed on the gateway but can be changed if ran on another
+  system on the same network
+- `THINGSBOARD_GATEWAY_ACCESS_TOKEN` represents the token to access the device running as the gateway
+
+## Deployment
+
+Generate archive of release `x.y.y` with:
 ```shell
-mbed import https://gitlab.com/catie_6tron/iaq-sensor-demo.git iaq-sensor-demo
+git archive --format=tar.gz -o 3SqAir_LoRaWAN_forwarder-vx.y.z.tar.gz x.y.z
 ```
 
-Alternatively:
+Upload app on DeviceHQ in the Developer tab.
 
-- Clone to "iaq-sensor-demo" and enter it:
-  ```shell
-  git clone https://gitlab.com/catie_6tron/iaq-sensor-demo.git iaq-sensor-demo
-  cd iaq-sensor-demo
-  ```
-
-- Deploy software requirements with:
-  ```shell
-  mbed deploy
-  ```
-
-Enable the custom target:
-```shell
-cp zest-core-fmlr-72/custom_targets.json .
-```
-
-Compile the project:
-```shell
-mbed compile
-```
-
-Program the target device with a Segger J-Link debug probe and
-[`sixtron_flash`](https://gitlab.com/catie_6tron/6tron-flash) tool:
-```shell
-sixtron_flash stm32l071rz BUILD/ZEST_CORE_FMLR-72/GCC_ARM/iaq-sensor-demo.elf
-```
-
-Debug on the target device with the probe and Segger
-[Ozone](https://www.segger.com/products/development-tools/ozone-j-link-debugger)
-software.
+Schedule the install app task in on DeviceHQ in the Devices tab.

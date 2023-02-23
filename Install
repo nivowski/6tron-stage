@@ -1,0 +1,42 @@
+#!/bin/bash
+
+# This Install script is executed by the device's app manager upon install or remove of app   
+
+# app-manager requires this script to implement the install, remove, and 
+# postinstall command line arguments.
+
+
+# This script can be fully customized if you need to install non-ipk 
+# dependancies or no dependancies at all.
+
+case "$1" in
+  # install is invoked by app-manager while installing a custom app. 
+  install)
+      echo "install"
+
+      # Put install code here, eg, 
+      # python install.py
+
+      # execute application, eg
+      # python run.py
+      # node run.js 
+
+      # uncomment the following if you would like the device to reboot after install
+      # curl -k -X POST -d'{"name":"admin","password":"admin"}' -H"Content-Type:application/json" "http://localhost/api/command/save_restart"
+
+
+      ;;
+  # postinstall is invoked by app-manager immediately after installing a custom app. 
+  postinstall)
+    # remove is invoked by app-manager while uninstalling a custom app. 
+      echo "postinstall"
+      ;;
+  remove)
+      ;;
+  *)
+      echo "Usage: $0 {install|postinstall|remove}" >&2
+      exit 1
+      ;;
+esac
+
+exit 0

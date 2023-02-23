@@ -1,0 +1,138 @@
+#!/bin/bash
+
+# This Start script is used by the app-manager program to start and stop
+# applications. app-manager invokes this script with the 'start' option on boot
+# and when the app-manager start command is run. app-manager invokes this
+# script with the 'stop' option on shutdown and when the app-manager stop
+# command is run.
+#
+# app-manager requires this script to accept the following command line
+# arguments:
+#
+#   start - start the application process(es)
+#   stop  - stop the application process(es)
+#   restart - restart the application process(es)
+#   reload - reload the application configuration (new config downloaded)
+#
+#
+# This script is a fully cusomizable template that can be used to initialize
+# the environment for executing the application and starting all processes.
+# This script is the supported framework to start and stop an application.
+
+NAME="FMLR-Forwarder"
+
+# Use MultiTech Provided $APP_DIR environment variable
+DAEMON="/usr/bin/python"
+DAEMON_ARGS="$APP_DIR/run.py"
+RUN_DIR=$APP_DIR
+
+START_STOP_DAEMON="/usr/sbin/start-stop-daemon"
+PID_FILE="/var/run/$NAME.pid"
+
+# Set custom environment variables for the application execution
+function SetEnv {
+# MultiTech Provided Environment Variables:
+#    CONFIG_DIR
+#    APP_DIR
+#    APP_ID
+
+    echo "SetEnv"
+
+    echo $CONFIG_DIR
+    logger -t Start "$CONFIG_DIR"
+    echo $APP_DIR
+    logger -t Start "$APP_DIR"
+    echo $APP_ID
+    logger -t Start "$APP_ID"
+}
+
+# This function can be used to chmod files and implement any security initialization
+function CreateAccess {
+    echo "CreateAccess:"
+}
+
+# Intended to be a hook allowing the application to be executed as a non-root user.
+function ChangeUser {
+    echo "ChangeUser:"
+}
+
+# The nuts and bolts of starting the application process.
+function ExecuteStart {
+    echo "ExecuteStart:"
+    echo "Daemon: $DAEMON"
+
+    # This demonstrates how to optionally use start-stop-daemon
+    # http://man.he.net/man8/start-stop-daemon
+    $START_STOP_DAEMON --start \
+                      --background \
+                      --pidfile "$PID_FILE" \
+                      --make-pidfile \
+                      --chdir $APP_DIR \
+                      --startas "$DAEMON" \
+                      -- "$DAEMON_ARGS"
+}
+
+# Start the application running process(es)
+function Start {
+    SetEnv
+    CreateAccess
+    ChangeUser
+    ExecuteStart
+}
+
+# Stop the application running process(es)
+function Stop {
+    echo "Stop:"
+
+    # This demonstrates how to optionally use start-stop-daemon
+    $START_STOP_DAEMON --stop -p "$PID_FILE" --retry 60
+}
+
+# Effectively stop and start the application again.
+function Restart {
+    echo "Restart:"
+    Stop
+    sleep 1
+    Start
+}
+
+# Notify the application process that new config files are available
+function Reload {
+    echo "Reload:"
+    # Restart
+    # Could SIGHUP your process if it supports it instead of restarting
+}
+
+#Gather options from command line
+# Reset in case getopts has been used previously in the shell.
+OPTIND=1
+
+case "$1" in
+    # start is invoked by app-manager after install, on boot, and
+    # during config install
+    start)
+        echo -n "Starting $NAME: "
+        Start
+        ;;
+    # stop is invoked by app-manager before shutdown, and during config install
+    stop)
+        echo -n "Stopping $NAME: "
+        Stop
+        ;;
+    # restart is invoked by app-manager when the app is explicitly restarted
+    restart)
+        echo -n "Restarting $NAME: "
+        Restart
+        ;;
+    # reload is invoked by app-manager after a new config has been installed
+    reload)
+        echo -n "Restarting $NAME: "
+        Reload
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|restart|reload}" >&2
+        exit 1
+        ;;
+esac
+
+exit 0
